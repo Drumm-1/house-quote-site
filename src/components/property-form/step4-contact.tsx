@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { User, Phone, AlertCircle, Clock, Shield } from 'lucide-react'
+import { User, Phone, AlertCircle, Clock, Shield, Mail } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-context'
 
 interface Step4ContactProps {
@@ -17,9 +17,10 @@ interface Step4ContactProps {
 }
 
 export interface ContactData {
-  phone: string
   timeline: string
   motivation: string
+  preferredContact: string
+  bestTimeToCall: string
 }
 
 const timelineOptions = [
@@ -30,12 +31,27 @@ const timelineOptions = [
   { value: 'flexible', label: 'I\'m flexible' }
 ]
 
+const contactOptions = [
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone call' },
+  { value: 'text', label: 'Text message' },
+  { value: 'any', label: 'Any method is fine' }
+]
+
+const timeOptions = [
+  { value: 'morning', label: 'Morning (8 AM - 12 PM)' },
+  { value: 'afternoon', label: 'Afternoon (12 PM - 5 PM)' },
+  { value: 'evening', label: 'Evening (5 PM - 8 PM)' },
+  { value: 'anytime', label: 'Anytime' }
+]
+
 export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false }: Step4ContactProps) {
   const { user } = useAuth()
   const [formData, setFormData] = useState<ContactData>({
-    phone: initialData?.phone || '',
     timeline: initialData?.timeline || '',
-    motivation: initialData?.motivation || ''
+    motivation: initialData?.motivation || '',
+    preferredContact: initialData?.preferredContact || 'email',
+    bestTimeToCall: initialData?.bestTimeToCall || 'anytime'
   })
   
   const [errors, setErrors] = useState<Partial<ContactData>>({})
@@ -43,11 +59,6 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
   const validateForm = () => {
     const newErrors: Partial<ContactData> = {}
     
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required'
-    } else if (!/^[\d\s\-\(\)\+]+$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number'
-    }
     if (!formData.timeline) {
       newErrors.timeline = 'Please select your timeline'
     }
@@ -58,11 +69,15 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🏠 Step4Contact: Form submitted')
+    console.log('🏠 Step4Contact: Form data:', formData)
     
     if (!validateForm()) {
+      console.log('🏠 Step4Contact: Form validation failed')
       return
     }
 
+    console.log('🏠 Step4Contact: Calling onNext with data:', formData)
     onNext(formData)
   }
 
@@ -74,42 +89,25 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
     }
   }
 
-  const formatPhoneNumber = (value: string) => {
-    // Remove all non-digits
-    const digits = value.replace(/\D/g, '')
-    
-    // Format as (XXX) XXX-XXXX
-    if (digits.length >= 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`
-    } else if (digits.length >= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-    } else if (digits.length >= 3) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-    }
-    return digits
-  }
-
-  const handlePhoneChange = (value: string) => {
-    const formatted = formatPhoneNumber(value)
-    handleInputChange('phone', formatted)
-  }
-
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <div className="flex items-center space-x-2 mb-2">
           <User className="h-6 w-6 text-blue-600" />
-          <CardTitle className="text-2xl">Contact Information</CardTitle>
+          <CardTitle className="text-2xl">Contact Preferences</CardTitle>
         </div>
         <p className="text-gray-600">
-          We're almost done! Just need your phone number and timeline to send your 
-          instant cash offer.
+          We're almost done! Just need to know your timeline and how you'd like us to contact you 
+          about your instant cash offer.
         </p>
         {user?.email && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
-            <p className="text-sm text-green-800">
-              <strong>Email:</strong> {user.email} ✓
-            </p>
+            <div className="flex items-center space-x-2">
+              <Mail className="h-4 w-4 text-green-600" />
+              <p className="text-sm text-green-800">
+                <strong>Email:</strong> {user.email} ✓
+              </p>
+            </div>
             <p className="text-xs text-green-600 mt-1">
               Your cash offer will be sent to this verified email address.
             </p>
@@ -119,52 +117,27 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Phone Number */}
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number *
-            </label>
-            <div className="relative">
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="(555) 123-4567"
-                value={formData.phone}
-                onChange={(e) => handlePhoneChange(e.target.value)}
-                className={`pl-10 ${errors.phone ? 'border-red-500' : ''}`}
-                disabled={isSubmitting}
-              />
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </div>
-            {errors.phone && (
-              <div className="flex items-center mt-1 text-red-600 text-sm">
-                <AlertCircle className="h-4 w-4 mr-1" />
-                {errors.phone}
-              </div>
-            )}
-          </div>
-
           {/* Timeline */}
           <div>
             <label htmlFor="timeline" className="block text-sm font-medium text-gray-700 mb-2">
               When do you need to sell? *
             </label>
-                      <div className="relative">
-            <Select
-              value={formData.timeline}
-              onChange={(e) => handleInputChange('timeline', e.target.value)}
-              disabled={isSubmitting}
-              className={`pl-10 ${errors.timeline ? 'border-red-500' : ''}`}
-            >
-              <option value="">Select your timeline</option>
-              {timelineOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
-            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-          </div>
+            <div className="relative">
+              <Select
+                value={formData.timeline}
+                onChange={(e) => handleInputChange('timeline', e.target.value)}
+                disabled={isSubmitting}
+                className={`pl-10 ${errors.timeline ? 'border-red-500' : ''}`}
+              >
+                <option value="">Select your timeline</option>
+                {timelineOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            </div>
             {errors.timeline && (
               <div className="flex items-center mt-1 text-red-600 text-sm">
                 <AlertCircle className="h-4 w-4 mr-1" />
@@ -172,6 +145,62 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
               </div>
             )}
           </div>
+
+          {/* Preferred Contact Method */}
+          <div>
+            <label htmlFor="preferredContact" className="block text-sm font-medium text-gray-700 mb-2">
+              How would you like us to contact you?
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {contactOptions.map((option) => (
+                <div
+                  key={option.value}
+                  className={`
+                    relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md
+                    ${formData.preferredContact === option.value 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                    }
+                  `}
+                  onClick={() => handleInputChange('preferredContact', option.value)}
+                >
+                  <input
+                    type="radio"
+                    name="preferredContact"
+                    value={option.value}
+                    checked={formData.preferredContact === option.value}
+                    onChange={() => handleInputChange('preferredContact', option.value)}
+                    className="absolute top-4 right-4 h-4 w-4 text-blue-600"
+                  />
+                  <p className="font-medium text-gray-900 pr-6">{option.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Best Time to Call (only show if phone/text selected) */}
+          {(formData.preferredContact === 'phone' || formData.preferredContact === 'text' || formData.preferredContact === 'any') && (
+            <div>
+              <label htmlFor="bestTimeToCall" className="block text-sm font-medium text-gray-700 mb-2">
+                Best time to call/text?
+              </label>
+              <div className="relative">
+                <Select
+                  value={formData.bestTimeToCall}
+                  onChange={(e) => handleInputChange('bestTimeToCall', e.target.value)}
+                  disabled={isSubmitting}
+                  className="pl-10"
+                >
+                  {timeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          )}
 
           {/* Motivation */}
           <div>
@@ -194,33 +223,32 @@ export function Step4Contact({ onNext, onBack, initialData, isSubmitting = false
           {/* Privacy Notice */}
           <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
             <div className="flex items-start space-x-3">
-              <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <Shield className="h-5 w-5 text-gray-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-gray-900">Your Privacy is Protected</h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  We never sell your information to third parties. Your contact details will only be used 
-                  to provide your cash offer and coordinate the sale process.
+                <h4 className="font-medium text-gray-900 mb-1">Your Privacy Matters</h4>
+                <p className="text-sm text-gray-600">
+                  We'll only use your contact information to discuss your property sale. 
+                  We never share your information with third parties or use it for marketing purposes.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
+          {/* Navigation Buttons */}
           <div className="flex justify-between pt-6">
-            <Button
-              type="button"
-              variant="outline"
+            <Button 
+              type="button" 
+              variant="outline" 
               onClick={onBack}
-              disabled={isSubmitting}
               className="px-8"
+              disabled={isSubmitting}
             >
               Back
             </Button>
-            
-            <Button
+            <Button 
               type="submit"
+              className="px-8"
               disabled={isSubmitting}
-              className="px-8 bg-blue-600 hover:bg-blue-700"
             >
               {isSubmitting ? 'Getting Your Offer...' : 'Get My Cash Offer'}
             </Button>

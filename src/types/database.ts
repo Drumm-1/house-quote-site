@@ -687,7 +687,7 @@ export interface DashboardStats {
 }
 
 // Property with related data
-export interface PropertyWithDetails extends Property {
+export interface PropertyWithDetails extends Omit<Property, 'photos'> {
   quotes?: Quote[]
   photos?: PropertyPhoto[]
   inspections?: PropertyInspection[]

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Settings, AlertCircle, CheckCircle, Home, Wrench } from 'lucide-react'
+import { Settings, AlertCircle, CheckCircle, Home, Wrench, Upload, X, Image, FileText } from 'lucide-react'
 
 interface Step3ConditionProps {
   onNext: (data: ConditionData) => void
@@ -15,6 +15,8 @@ interface Step3ConditionProps {
 export interface ConditionData {
   condition: string
   additionalNotes: string
+  photos: File[]
+  floorPlan: File | null
 }
 
 const conditionOptions = [
@@ -63,10 +65,14 @@ const conditionOptions = [
 export function Step3Condition({ onNext, onBack, initialData }: Step3ConditionProps) {
   const [formData, setFormData] = useState<ConditionData>({
     condition: initialData?.condition || '',
-    additionalNotes: initialData?.additionalNotes || ''
+    additionalNotes: initialData?.additionalNotes || '',
+    photos: initialData?.photos || [],
+    floorPlan: initialData?.floorPlan || null
   })
   
   const [errors, setErrors] = useState<Partial<ConditionData>>({})
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const floorPlanInputRef = useRef<HTMLInputElement>(null)
 
   const validateForm = () => {
     const newErrors: Partial<ConditionData> = {}
@@ -101,16 +107,53 @@ export function Step3Condition({ onNext, onBack, initialData }: Step3ConditionPr
     setFormData(prev => ({ ...prev, additionalNotes }))
   }
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const validFiles = files.filter(file => {
+      const isValidType = file.type.startsWith('image/')
+      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
+      return isValidType && isValidSize
+    })
+
+    setFormData(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...validFiles].slice(0, 10) // Max 10 photos
+    }))
+  }
+
+  const handleFloorPlanUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const isValidType = file.type.startsWith('image/') || file.type === 'application/pdf'
+      const isValidSize = file.size <= 10 * 1024 * 1024 // 10MB
+      
+      if (isValidType && isValidSize) {
+        setFormData(prev => ({ ...prev, floorPlan: file }))
+      }
+    }
+  }
+
+  const removePhoto = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }))
+  }
+
+  const removeFloorPlan = () => {
+    setFormData(prev => ({ ...prev, floorPlan: null }))
+  }
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <div className="flex items-center space-x-2 mb-2">
           <Settings className="h-6 w-6 text-blue-600" />
-          <CardTitle className="text-2xl">Property Condition</CardTitle>
+          <CardTitle className="text-2xl">Property Condition & Photos</CardTitle>
         </div>
         <p className="text-gray-600">
-          Help us understand your property's current condition. This affects our offer 
-          calculation, but remember - we buy houses as-is!
+          Help us understand your property's current condition and share some photos. 
+          This affects our offer calculation, but remember - we buy houses as-is!
         </p>
       </CardHeader>
 
@@ -177,6 +220,133 @@ export function Step3Condition({ onNext, onBack, initialData }: Step3ConditionPr
             )}
           </div>
 
+          {/* Photo Upload Section */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Property Photos <span className="text-gray-400">(Optional)</span>
+              </label>
+              <p className="text-sm text-gray-500 mb-4">
+                Upload photos of your property to help us provide a more accurate offer. 
+                Include exterior, interior, and any areas that need attention.
+              </p>
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Click to upload photos or drag and drop
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  PNG, JPG, GIF up to 10MB each (max 10 photos)
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  <Image className="h-4 w-4 mr-2" />
+                  Choose Photos
+                </Button>
+              </div>
+
+              {/* Photo Preview */}
+              {formData.photos.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  {formData.photos.map((photo, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={URL.createObjectURL(photo)}
+                        alt={`Property photo ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1 truncate">
+                        {photo.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Floor Plan Upload Section */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Floor Plan <span className="text-gray-400">(Optional)</span>
+              </label>
+              <p className="text-sm text-gray-500 mb-4">
+                Upload a floor plan if you have one. This helps us better understand your property layout.
+              </p>
+              
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                <input
+                  ref={floorPlanInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFloorPlanUpload}
+                  className="hidden"
+                />
+                <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Click to upload floor plan
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  PNG, JPG, PDF up to 10MB
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => floorPlanInputRef.current?.click()}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Choose Floor Plan
+                </Button>
+              </div>
+
+              {/* Floor Plan Preview */}
+              {formData.floorPlan && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {formData.floorPlan.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(formData.floorPlan.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeFloorPlan}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Additional Notes */}
           <div>
             <label htmlFor="additionalNotes" className="block text-sm font-medium text-gray-700 mb-2">
@@ -198,65 +368,59 @@ export function Step3Condition({ onNext, onBack, initialData }: Step3ConditionPr
           {/* Info Boxes based on selection */}
           {formData.condition === 'excellent' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start space-x-2">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-green-900 mb-1">Excellent Condition</h4>
-                  <p className="text-sm text-green-700">
-                    Properties in excellent condition typically receive our highest offers. 
-                    We'll still verify the condition during our inspection.
-                  </p>
-                </div>
-              </div>
+              <h4 className="font-medium text-green-900 mb-2">Excellent Condition</h4>
+              <p className="text-sm text-green-700">
+                Great! Properties in excellent condition typically receive our highest offers. 
+                Your property sounds move-in ready with minimal work needed.
+              </p>
+            </div>
+          )}
+
+          {formData.condition === 'good' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Good Condition</h4>
+              <p className="text-sm text-blue-700">
+                Properties in good condition are very attractive to us. Minor cosmetic updates 
+                won't significantly impact our offer - we handle those details.
+              </p>
+            </div>
+          )}
+
+          {formData.condition === 'fair' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-900 mb-2">Fair Condition</h4>
+              <p className="text-sm text-yellow-700">
+                No problem! We specialize in properties that need some work. Our offer will 
+                account for necessary repairs while still providing you with a fair cash price.
+              </p>
             </div>
           )}
 
           {formData.condition === 'needs_work' && (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start space-x-2">
-                <Wrench className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-orange-900 mb-1">We Buy As-Is</h4>
-                  <p className="text-sm text-orange-700">
-                    Don't worry about repairs! We buy houses in any condition and will 
-                    factor repair costs into our fair cash offer.
-                  </p>
-                </div>
-              </div>
+              <h4 className="font-medium text-orange-900 mb-2">Needs Work</h4>
+              <p className="text-sm text-orange-700">
+                Perfect! This is exactly what we do best. We buy properties that need major 
+                work and handle all repairs ourselves. You can sell as-is with no hassle.
+              </p>
             </div>
           )}
 
-          {/* General Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-2">
-              <Settings className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-blue-900 mb-1">Honest Assessment</h4>
-                <p className="text-sm text-blue-700">
-                  Please be honest about your property's condition. This helps us provide 
-                  the most accurate offer upfront and speeds up the process.
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Navigation Buttons */}
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-6">
             <Button 
-              type="button"
-              variant="outline"
-              size="lg"
+              type="button" 
+              variant="outline" 
               onClick={onBack}
               className="px-8"
             >
-              Back to Details
+              Back
             </Button>
             <Button 
-              type="submit" 
-              size="lg" 
+              type="submit"
               className="px-8"
             >
-              Continue to Photos
+              Continue to Contact Info
             </Button>
           </div>
         </form>

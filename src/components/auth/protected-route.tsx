@@ -14,13 +14,23 @@ export function ProtectedRoute({ children, requireVerified = true }: ProtectedRo
   const router = useRouter()
 
   useEffect(() => {
+    console.log('🛡️ ProtectedRoute: Checking access...', {
+      loading,
+      hasUser: !!user,
+      userEmail: user?.email,
+      emailConfirmed: user?.email_confirmed_at,
+      requireVerified
+    })
+
     if (!loading) {
       if (!user) {
-        // User not logged in, redirect to login
+        console.log('🛡️ ProtectedRoute: No user found, redirecting to login')
         router.push('/auth/login?redirect=/get-quote')
       } else if (requireVerified && !user.email_confirmed_at) {
-        // User not verified, redirect to verification page
+        console.log('🛡️ ProtectedRoute: User not verified, redirecting to verification')
         router.push('/auth/verify')
+      } else {
+        console.log('🛡️ ProtectedRoute: Access granted')
       }
     }
   }, [user, loading, router, requireVerified])

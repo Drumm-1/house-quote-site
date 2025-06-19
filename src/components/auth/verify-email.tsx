@@ -29,7 +29,7 @@ export function VerifyEmail() {
         // when the user clicks the link, so we just need to check if they're verified
         setTimeout(() => {
           if (user?.email_confirmed_at) {
-            router.push('/get-quote')
+            router.push('/dashboard')
           }
         }, 2000)
       }
@@ -69,7 +69,7 @@ export function VerifyEmail() {
 
   // If user is already verified, redirect them
   if (user?.email_confirmed_at) {
-    router.push('/get-quote')
+    router.push('/dashboard')
     return null
   }
 
@@ -119,7 +119,7 @@ export function VerifyEmail() {
                 <div className="space-y-1 text-sm text-blue-700">
                   <p>1. Check your email inbox (and spam folder)</p>
                   <p>2. Click the "Verify Email" link</p>
-                  <p>3. You'll be automatically redirected to continue</p>
+                  <p>3. You'll be automatically redirected to your dashboard</p>
                 </div>
               </div>
 

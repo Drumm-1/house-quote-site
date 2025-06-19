@@ -1,16 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from './auth-context'
-import { Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle, User, Phone } from 'lucide-react'
 
 export function SignupForm() {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -22,7 +25,7 @@ export function SignupForm() {
   const { signUp } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/get-quote'
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
 
   const validatePassword = (password: string) => {
     const minLength = password.length >= 8
@@ -41,10 +44,49 @@ export function SignupForm() {
 
   const passwordValidation = validatePassword(password)
 
+  // Handle email input changes
+  const handleEmailChange = useCallback((value: string) => {
+    setEmail(value)
+    setError('') // Clear any previous errors
+  }, [])
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '')
+    
+    // Format as (XXX) XXX-XXXX
+    if (digits.length >= 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`
+    } else if (digits.length >= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    } else if (digits.length >= 3) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    }
+    return digits
+  }
+
+  const handlePhoneChange = (value: string) => {
+    const formatted = formatPhoneNumber(value)
+    setPhone(formatted)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // Validate required fields
+    if (!firstName.trim()) {
+      setError('First name is required')
+      setLoading(false)
+      return
+    }
+
+    if (!lastName.trim()) {
+      setError('Last name is required')
+      setLoading(false)
+      return
+    }
 
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -60,7 +102,11 @@ export function SignupForm() {
       return
     }
 
-    const { error } = await signUp(email, password)
+    const { error } = await signUp(email, password, {
+      firstName,
+      lastName,
+      phone: phone || null
+    })
     
     if (error) {
       if (error.message.includes('already registered')) {
@@ -98,7 +144,7 @@ export function SignupForm() {
                   <div className="space-y-1 text-sm text-blue-700">
                     <p>1. Check your email inbox (and spam folder)</p>
                     <p>2. Click the verification link</p>
-                    <p>3. Return here to sign in and get your quote</p>
+                    <p>3. You'll be redirected to your dashboard</p>
                   </div>
                 </div>
 
@@ -147,10 +193,49 @@ export function SignupForm() {
                 </div>
               )}
 
-              {/* Email Field */}
+              {/* Name Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                    First Name *
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-10"
+                      disabled={loading}
+                    />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name *
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="pl-10"
+                      disabled={loading}
+                    />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
+                  Email Address *
                 </label>
                 <div className="relative">
                   <Input
@@ -158,13 +243,34 @@ export function SignupForm() {
                     type="email"
                     placeholder="john@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    className="pl-10 pr-10"
                     disabled={loading}
                   />
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 </div>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number <span className="text-gray-400">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    className="pl-10"
+                    disabled={loading}
+                  />
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  We'll use this to contact you about your property offers
+                </p>
               </div>
 
               {/* Password Field */}
@@ -261,7 +367,11 @@ export function SignupForm() {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={loading || !passwordValidation.isValid || password !== confirmPassword}
+                disabled={
+                  loading || 
+                  !passwordValidation.isValid || 
+                  password !== confirmPassword
+                }
               >
                 {loading ? 'Creating Account...' : 'Create Account'}
               </Button>

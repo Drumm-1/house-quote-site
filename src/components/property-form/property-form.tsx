@@ -20,8 +20,8 @@ type FormData = {
 const stepLabels = [
   'Address',
   'Details',
-  'Condition',
-  'Contact'
+  'Condition & Photos',
+  'Contact Preferences'
 ]
 
 export function PropertyForm() {
@@ -30,6 +30,10 @@ export function PropertyForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Partial<FormData>>({})
+
+  // Debug: Log when component loads
+  console.log('🏠 PropertyForm component loaded, user:', user)
+  console.log('🏠 Current step:', currentStep)
 
   const handleStep1Complete = (data: AddressData) => {
     setFormData(prev => ({ ...prev, address: data }))
@@ -47,8 +51,16 @@ export function PropertyForm() {
   }
 
   const handleStep4Complete = async (data: ContactData) => {
+    console.log('🏠 handleStep4Complete called with:', data)
+    console.log('🏠 Current user:', user)
+    console.log('🏠 Form data so far:', formData)
+    
+    // Add alert to make sure we're reaching this point
+    console.log('🏠 Starting form submission process...')
+    
     if (!user) {
-      console.error('User not authenticated')
+      console.error('🏠 User not authenticated')
+      alert('You must be logged in to submit a property. Please log in and try again.')
       return
     }
 
@@ -61,7 +73,21 @@ export function PropertyForm() {
         contact: data
       } as FormData
 
+      console.log('🏠 Submitting form data:', completeFormData)
+
+      // Validate that all required form data is present
+      if (!completeFormData.address || !completeFormData.details || !completeFormData.condition || !completeFormData.contact) {
+        console.error('🏠 Missing form data:', {
+          hasAddress: !!completeFormData.address,
+          hasDetails: !!completeFormData.details,
+          hasCondition: !!completeFormData.condition,
+          hasContact: !!completeFormData.contact
+        })
+        throw new Error('Missing required form data. Please go back and complete all steps.')
+      }
+
       // Create property record in Supabase
+      console.log('🏠 Creating property record...')
       const { data: propertyData, error: propertyError } = await supabase
         .from('properties')
         .insert({
@@ -77,36 +103,63 @@ export function PropertyForm() {
           property_type: completeFormData.details.propertyType,
           lot_size: completeFormData.details.lotSize,
           condition: completeFormData.condition.condition,
+          description: completeFormData.condition.additionalNotes || null,
           status: 'active'
         })
         .select()
         .single()
 
       if (propertyError) {
+        console.error('🏠 Property creation error:', propertyError)
+        console.error('🏠 Property error details:', JSON.stringify(propertyError, null, 2))
         throw propertyError
       }
 
-      // Create quote using the database function
-      const { data: quoteId, error: quoteError } = await supabase
-        .rpc('create_property_quote', {
-          p_property_id: propertyData.id,
-          p_user_id: user.id,
-          p_timeline: completeFormData.contact.timeline,
-          p_motivation: completeFormData.contact.motivation || ''
+      console.log('🏠 Property created successfully:', propertyData)
+
+      // Create quote using direct insert (since RPC function has issues)
+      console.log('🏠 Creating quote...')
+      
+      const { data: quoteData, error: quoteError } = await supabase
+        .from('quotes')
+        .insert({
+          property_id: propertyData.id,
+          user_id: user.id,
+          amount: 0, // Will be calculated later
+          timeline: completeFormData.contact.timeline,
+          motivation: completeFormData.contact.motivation || '',
+          status: 'pending',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+          calculation_details: {
+            status: 'calculating',
+            started_at: new Date().toISOString()
+          }
         })
+        .select()
+        .single()
 
       if (quoteError) {
+        console.error('🏠 Quote creation error:', quoteError)
+        console.error('🏠 Quote error details:', JSON.stringify(quoteError, null, 2))
         throw quoteError
       }
 
-      // Redirect to quote results page with the quote ID
-      router.push(`/quote-results?quote_id=${quoteId}`)
+      console.log('🏠 Quote created successfully:', quoteData)
+      const quoteId = quoteData.id
+
+      // Redirect to dashboard instead of quote results
+      router.push('/dashboard?new_quote=true')
       
     } catch (error) {
-      console.error('Error submitting form:', error)
+      console.error('🏠 Error submitting form:', error)
+      console.error('🏠 Error type:', typeof error)
+      console.error('🏠 Error details:', JSON.stringify(error, null, 2))
       setIsSubmitting(false)
-      // TODO: Show error message to user
-      alert('There was an error submitting your property. Please try again.')
+      
+      // Show more specific error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      console.error('🏠 Final error message shown to user:', errorMessage)
+      alert(`There was an error submitting your property: ${errorMessage}. Please try again.`)
     }
   }
 
@@ -119,6 +172,20 @@ export function PropertyForm() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Debug Info - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-yellow-800">🐛 Debug Info</h4>
+            <p className="text-sm text-yellow-700">
+              User: {user ? `✅ ${user.email}` : '❌ Not authenticated'} | 
+              Step: {currentStep}/4 | 
+              Submitting: {isSubmitting ? 'Yes' : 'No'}
+            </p>
+            <p className="text-xs text-yellow-600 mt-1">
+              Check browser console (F12) for detailed logs with 🏠 emoji
+            </p>
+          </div>
+        )}
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
