@@ -3,9 +3,29 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { UserProfile } from '@/types/database'
+
+// Extended user info combining auth.identities and user_profiles
+interface UserInfo {
+  // From auth.identities (personal info)
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  // From user_profiles (business/profile data only)
+  user_type?: string
+  company_name?: string
+  license_number?: string
+  preferences?: any
+  address?: string  // Business/mailing address
+  city?: string
+  state?: string
+  zip_code?: string
+}
 
 interface AuthContextType {
   user: User | null
+  userInfo: UserInfo | null
   loading: boolean
   signUp: (email: string, password: string, userData?: { firstName: string; lastName: string; phone?: string | null }) => Promise<{ error: AuthError | null }>
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
@@ -17,7 +37,70 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Function to fetch user info from the secure function
+  const fetchUserInfo = async (userId: string) => {
+    try {
+      console.log('🔐 AuthProvider: Fetching user info for:', userId)
+      
+      // Get combined user info from the secure function
+      const { data, error } = await supabase
+        .rpc('get_current_user_info')
+
+      if (error) {
+        console.error('🔐 AuthProvider: Error fetching user info:', error)
+        // If function doesn't exist or auth schema access is blocked, fallback to basic info
+        console.log('🔐 AuthProvider: Falling back to basic user info from auth user')
+        setUserInfo({
+          first_name: user?.user_metadata?.first_name,
+          last_name: user?.user_metadata?.last_name,
+          email: user?.email,
+          phone: user?.user_metadata?.phone
+        })
+        return
+      }
+
+      if (data && data.length > 0) {
+        const userInfo = {
+          first_name: data[0].first_name,
+          last_name: data[0].last_name,
+          email: data[0].email,
+          phone: data[0].phone,
+          user_type: data[0].user_type,
+          company_name: data[0].company_name,
+          license_number: data[0].license_number,
+          preferences: data[0].preferences,
+          address: data[0].address,
+          city: data[0].city,
+          state: data[0].state,
+          zip_code: data[0].zip_code
+        }
+        console.log('🔐 AuthProvider: User info fetched:', userInfo)
+        setUserInfo(userInfo)
+      } else {
+        console.log('🔐 AuthProvider: No user info found, using fallback')
+        // Fallback to user metadata if no data from function
+        setUserInfo({
+          first_name: user?.user_metadata?.first_name,
+          last_name: user?.user_metadata?.last_name,
+          email: user?.email,
+          phone: user?.user_metadata?.phone
+        })
+      }
+
+    } catch (err) {
+      console.error('🔐 AuthProvider: Exception fetching user info:', err)
+      // Fallback to basic user metadata
+      setUserInfo({
+        first_name: user?.user_metadata?.first_name,
+        last_name: user?.user_metadata?.last_name,
+        email: user?.email,
+        phone: user?.user_metadata?.phone
+      })
+    }
+  }
 
   useEffect(() => {
     // Get initial session
@@ -29,14 +112,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('🔐 AuthProvider: Error getting session:', error)
         } else {
           console.log('🔐 AuthProvider: Initial session:', session?.user ? 'User found' : 'No user')
-          console.log('🔐 AuthProvider: User details:', {
-            id: session?.user?.id,
-            email: session?.user?.email,
-            emailConfirmed: session?.user?.email_confirmed_at,
-            role: session?.user?.role
-          })
+          if (session?.user) {
+            console.log('🔐 AuthProvider: User details:', {
+              id: session.user.id,
+              email: session.user.email,
+              emailConfirmed: session.user.email_confirmed_at,
+              role: session.user.role
+            })
+          }
         }
         setUser(session?.user ?? null)
+        
+        // Fetch user info if user exists
+        if (session?.user) {
+          await fetchUserInfo(session.user.id)
+        } else {
+          setUserInfo(null)
+        }
+        
         setLoading(false)
       } catch (err) {
         console.error('🔐 AuthProvider: Exception getting session:', err)
@@ -61,6 +154,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
         }
         setUser(session?.user ?? null)
+        
+        // Fetch user info if user exists, otherwise clear it
+        if (session?.user) {
+          await fetchUserInfo(session.user.id)
+        } else {
+          setUserInfo(null)
+        }
+        
         setLoading(false)
       }
     )
@@ -94,31 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('🔐 AuthContext: Sign up successful', data)
-
-      // If userData is provided and user is created, create user profile
-      if (userData && data.user) {
-        console.log('🔐 AuthContext: Creating user profile')
-        try {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: data.user.id,
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-              phone: userData.phone,
-              user_type: 'seller'
-            })
-
-          if (profileError) {
-            console.log('🔐 AuthContext: Profile creation error:', profileError)
-            // Don't fail the signup if profile creation fails
-          } else {
-            console.log('🔐 AuthContext: User profile created successfully')
-          }
-        } catch (profileErr) {
-          console.log('🔐 AuthContext: Profile creation exception:', profileErr)
-        }
-      }
+      // No need to create profile here - identity data is automatically stored by Supabase
+      // Business profile can be created later when needed
 
       return { error: null }
     } catch (err) {
@@ -194,6 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    userInfo,
     loading,
     signUp,
     signIn,

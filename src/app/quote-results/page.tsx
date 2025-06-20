@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select'
 import { CheckCircle, DollarSign, Home, Calendar, Phone, Mail, AlertCircle, Clock, Calculator, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/components/auth/auth-context'
 import { supabase } from '@/lib/supabase'
+import { Header } from '@/components/header'
 import type { Quote, Property } from '@/types/database'
 
 interface QuoteWithProperty extends Quote {
@@ -38,7 +39,7 @@ const timelineLabels: Record<string, string> = {
 function QuoteResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [quote, setQuote] = useState<QuoteWithProperty | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -93,6 +94,11 @@ function QuoteResultsContent() {
         return
       }
 
+      // Wait for authentication to complete before checking user
+      if (authLoading) {
+        return
+      }
+
       if (!user) {
         setError('User not authenticated')
         setLoading(false)
@@ -140,7 +146,7 @@ function QuoteResultsContent() {
     }
 
     fetchQuote()
-  }, [searchParams, user])
+  }, [searchParams, user, authLoading])
 
   const startCalculationProcess = async (quoteId: string) => {
     // Generate random wait time between 1-2 minutes (60000-120000 ms)
@@ -301,31 +307,39 @@ function QuoteResultsContent() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your cash offer...</p>
+      <>
+        <Header />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">
+              {authLoading ? 'Authenticating...' : 'Loading your cash offer...'}
+            </p>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 mb-4">
-            <AlertCircle className="h-12 w-12 mx-auto mb-2" />
-            <p className="text-lg font-semibold">Error Loading Quote</p>
-            <p className="text-sm">{error || 'Quote not found'}</p>
+      <>
+        <Header />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-600 mb-4">
+              <AlertCircle className="h-12 w-12 mx-auto mb-2" />
+              <p className="text-lg font-semibold">Error Loading Quote</p>
+              <p className="text-sm">{error || 'Quote not found'}</p>
+            </div>
+            <Button onClick={() => router.push('/get-quote')}>
+              Get New Quote
+            </Button>
           </div>
-          <Button onClick={() => router.push('/get-quote')}>
-            Get New Quote
-          </Button>
         </div>
-      </div>
+      </>
     )
   }
 
@@ -334,8 +348,10 @@ function QuoteResultsContent() {
   const isCompleted = calculationState?.status === 'completed'
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      <Header />
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Calculating State */}
         {isCalculating && (
@@ -576,6 +592,7 @@ function QuoteResultsContent() {
         </Card>
       </div>
     </div>
+    </>
   )
 }
 

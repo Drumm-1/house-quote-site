@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useAuth } from './auth-context'
-import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react'
 
 export function LoginForm() {
   const [email, setEmail] = useState('')
@@ -15,8 +15,9 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   
-  const { signIn } = useAuth()
+  const { signIn, userInfo } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/dashboard'
@@ -38,8 +39,40 @@ export function LoginForm() {
       }
       setLoading(false)
     } else {
-      router.push(redirectTo)
+      setSuccess(true)
+      // Brief delay to show success message before redirect
+      setTimeout(() => {
+        router.push(redirectTo)
+      }, 1500)
     }
+  }
+
+  // Success message component
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Welcome back{userInfo?.first_name ? `, ${userInfo.first_name}` : ''}!
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Successfully signed in. Redirecting to your dashboard...
+                </p>
+                <div className="mt-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (

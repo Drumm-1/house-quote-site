@@ -130,13 +130,13 @@ export function SignupForm() {
               <div className="text-center space-y-4">
                 <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Check Your Email
+                  Welcome, {firstName}! Check Your Email
                 </h2>
                 <p className="text-gray-600">
                   We've sent a verification link to <strong>{email}</strong>
                 </p>
                 <p className="text-sm text-gray-500">
-                  Click the link in your email to verify your account and complete the signup process.
+                  Click the link in your email to verify your account and start getting instant cash offers for your property.
                 </p>
                 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">

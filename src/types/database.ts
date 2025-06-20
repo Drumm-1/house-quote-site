@@ -116,9 +116,6 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          first_name: string | null
-          last_name: string | null
-          phone: string | null
           address: string | null
           city: string | null
           state: string | null
@@ -133,9 +130,6 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
-          first_name?: string | null
-          last_name?: string | null
-          phone?: string | null
           address?: string | null
           city?: string | null
           state?: string | null
@@ -150,9 +144,6 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
-          first_name?: string | null
-          last_name?: string | null
-          phone?: string | null
           address?: string | null
           city?: string | null
           state?: string | null

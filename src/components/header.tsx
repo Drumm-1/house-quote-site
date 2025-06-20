@@ -8,11 +8,19 @@ import { useAuth } from '@/components/auth/auth-context'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { user, signOut } = useAuth()
+  const { user, userInfo, signOut } = useAuth()
 
   const handleSignOut = async () => {
     await signOut()
     setIsMenuOpen(false)
+  }
+
+  // Get display name - prefer first name from profile, fallback to email username
+  const getDisplayName = () => {
+    if (userInfo?.first_name) {
+      return userInfo.first_name
+    }
+    return user?.email?.split('@')[0] || 'User'
   }
 
   return (
@@ -40,7 +48,7 @@ export function Header() {
             {user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600">
-                  Welcome, {user.email?.split('@')[0]}
+                  Welcome, {getDisplayName()}
                 </span>
                 <Button variant="outline" asChild>
                   <Link href="/dashboard">Dashboard</Link>
@@ -103,7 +111,7 @@ export function Header() {
                 <>
                   <div className="px-3 py-2 border-t">
                     <span className="text-sm text-gray-600">
-                      Welcome, {user.email?.split('@')[0]}
+                      Welcome, {getDisplayName()}
                     </span>
                   </div>
                   <div className="px-3 py-2">
